@@ -1,6 +1,7 @@
 import random
 import re
 import string
+import threading
 import typing
 from tqdm import tqdm
 from datetime import datetime, timedelta
@@ -121,16 +122,16 @@ def generate_randon_data() -> dict:
                 identifiers_dict[identifier] = None
 
     identifiers_dict["datetime"] = generate_time()
-    identifiers_dict["username"] = random_string(random.randint(4, 9))
+    identifiers_dict["username"] = random_string(random.randint(4, 15))
     identifiers_dict["ip_address"] = random_ip()
-    identifiers_dict["database_name"] = f"db_{random.randint(1, 20)}"
+    identifiers_dict["database_name"] = f"db_{random.randint(1, 200)}"
     identifiers_dict["file_path"] = random_file_path()
     identifiers_dict["percentage"] = random_percentage()
-    identifiers_dict["server_name"] = f"server_{random.randint(1, 20)}"
+    identifiers_dict["server_name"] = f"server_{random.randint(1, 200)}"
     identifiers_dict["email_address"] = random_email()
-    identifiers_dict["machine_name"] = f"machine_{random.randint(1, 20)}"
+    identifiers_dict["machine_name"] = f"machine_{random.randint(1, 200)}"
     identifiers_dict["temperature"] = random.randint(1, 100)
-    identifiers_dict["task_name"] = f"task_{random.randint(1, 20)}"
+    identifiers_dict["task_name"] = f"task_{random.randint(1, 200)}"
     identifiers_dict["port"] = random.randint(1024, 65535)
     identifiers_dict["service_name"] = f"service_{random.randint(1, 20)}"
     identifiers_dict["package_name"] = f"package_{random.randint(1, 20)}"
@@ -148,20 +149,20 @@ def generate_randon_data() -> dict:
     identifiers_dict["file_name"] = f"{random_string()}.{random.choice(['txt', 'c', 'cpp', 'py', 'js'])}"
     identifiers_dict["response_time"] = random_response_time()
     identifiers_dict["server_address"] = random_ip()
-    identifiers_dict["module_name"] = f"module_{random.randint(1, 20)}"
-    identifiers_dict["rule_id"] = random.randint(1, 20)
-    identifiers_dict["device_name"] = f"device_{random.randint(1, 20)}"
-    identifiers_dict["network_name"] = f"net_{random.randint(1, 20)}"
+    identifiers_dict["module_name"] = f"module_{random.randint(1, 200)}"
+    identifiers_dict["rule_id"] = random.randint(1, 200)
+    identifiers_dict["device_name"] = f"device_{random.randint(1, 200)}"
+    identifiers_dict["network_name"] = f"net_{random.randint(1, 200)}"
     identifiers_dict["response_time_threshold"] = random_response_time()
-    identifiers_dict["resource_id"] = f"resource_{random.randint(1, 20)}"
-    identifiers_dict["device"] = f"device_{random.randint(1, 20)}"
-    identifiers_dict["server"] = f"server_{random.randint(1, 20)}"
-    identifiers_dict["terminal"] = random.randint(1, 20)
-    identifiers_dict["service"] = f"server_{random.randint(1, 20)}"
-    identifiers_dict["bucket_name"] = f"bucket_{random.randint(1, 20)}"
-    identifiers_dict["domain"] = random_string() + ".com",
+    identifiers_dict["resource_id"] = f"resource_{random.randint(1, 200)}"
+    identifiers_dict["device"] = f"device_{random.randint(1, 200)}"
+    identifiers_dict["server"] = f"server_{random.randint(1, 200)}"
+    identifiers_dict["terminal"] = random.randint(1, 200)
+    identifiers_dict["service"] = f"server_{random.randint(1, 200)}"
+    identifiers_dict["bucket_name"] = f"bucket_{random.randint(1, 200)}"
+    identifiers_dict["domain"] = random_string(random.randint(10, 20)) + ".com",
     identifiers_dict["days"] = random.randint(1, 365)
-    identifiers_dict["dependency"] = f"dependency_{random.randint(1, 20)}"
+    identifiers_dict["dependency"] = f"dependency_{random.randint(1, 200)}"
     identifiers_dict["application"] = f"app_{random_string()}"
 
     return identifiers_dict
@@ -171,13 +172,9 @@ def main() -> None:
     with open("log.log", 'w') as file:
         for x in tqdm(range(200000000), desc="generate:"):
             data = generate_randon_data()
-            message = random.choice(log_templates)
-            for key, value in data.items():
-                if key in message:
-                    message = message.replace("{" + key + "}", str(value))
+            message = random.choice(log_templates).format(**data)
             file.write(message + '\n')
         file.close()
-
 
 
 if __name__ == '__main__':
