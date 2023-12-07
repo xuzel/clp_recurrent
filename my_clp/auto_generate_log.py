@@ -7,6 +7,7 @@ from tqdm import tqdm
 from datetime import datetime, timedelta
 
 log_templates = [
+    # "{datatime} INFO System startup completed.",
     "{datetime} INFO System startup completed.",
     "{datetime} WARNING User '{username}' login attempt failed from IP {ip_address}.",
     "{datetime} ERROR Database '{database_name}' connection timeout.",
@@ -169,8 +170,8 @@ def generate_randon_data() -> dict:
 
 
 def main() -> None:
-    with open("log.log", 'w') as file:
-        for x in tqdm(range(200000000), desc="generate:"):
+    with open("_log.log", 'w') as file:
+        for x in tqdm(range(400000000), desc="generate:"):
             data = generate_randon_data()
             message = random.choice(log_templates).format(**data)
             file.write(message + '\n')
