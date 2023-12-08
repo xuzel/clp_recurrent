@@ -1,7 +1,12 @@
+import os
 import re
 import sys
 import typing
 from auto_generate_log import log_templates
+import copy
+from datetime import datetime
+import struct
+import pickle
 
 
 class Log:
@@ -68,21 +73,80 @@ class LogFile:
         log_file.close()
         return log_list
 
-    def get_all_logs(self) -> typing.List[Log]:
-        return self.log_list
-
-    def get_log_using_index(self, index: int) -> Log:
-        return self.log_list[index]
-
     def __getitem__(self, item):
         return self.log_list[item]
 
 
+def count_pattern(text: str, pattern: str = r"\{.*?\}"):
+    return len(re.findall(pattern, text))
+
+
+def datatime2unix(date_string: str, datatime_format: str = '%Y-%m-%d %H:%M:%S.%f') -> float:
+    date_obj = datetime.strptime(date_string, datatime_format)
+    timestamp = date_obj.timestamp()
+    return timestamp
+
+
+def float2binary64(value: float):
+    packed = struct.pack('d', value)
+    return packed
+
+
+def int2binary64(value: int):
+    binary_data = struct.pack('q', value)
+    return binary_data
+
+
+def str_datatime2binary64(value: str):
+    return float2binary64(datatime2unix(value))
+
+
+class CompressLogFile:
+    LOG_TEMPLATE_INDEX = 0
+    VARIABLE_INDEX = 1
+
+    DATATIME_INDEX = 0
+
+    def __init__(self, log_file_path: str, template: typing.List[str], sve_path: str):
+        self.all_log = LogFile(log_file_path)
+        self.template = template
+        self.save_path = sve_path
+        self.log_variable = [[each_template.replace("{datetime} ", ''), list()] for each_template in self.template]
+        for index, each_log_tmp in enumerate(self.log_variable):
+            variable_num = count_pattern(each_log_tmp[self.LOG_TEMPLATE_INDEX])
+            for x in range(variable_num):
+                self.log_variable[index][self.VARIABLE_INDEX].append(list())
+        self._compress()
+
+    def _compress(self):
+        save_file = open(os.path.join(self.save_path, "compress_file.bin"), "wb")
+        save_pkl = open(os.path.join(self.save_path, "log_variable.pkl"), "wb")
+
+        for each_log in self.all_log:
+            file_position = save_file.tell()
+            binary_datatime = str_datatime2binary64(each_log.log_variables[self.DATATIME_INDEX])
+            save_file.write(binary_datatime)
+            binary_log_type = int2binary64(each_log.log_type_id)
+            save_file.write(binary_log_type)
+            for variable_index, each_variable in enumerate(each_log.log_variables):
+                if variable_index == self.DATATIME_INDEX:
+                    continue
+                self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1].append(
+                    [each_variable, file_position])
+                new_element_index = len(
+                    self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1]) - 1
+                new_element_index_binary = int2binary64(new_element_index)
+                save_file.write(new_element_index_binary)
+        pickle.dump(self.log_variable, save_pkl)
+        save_pkl.close()
+        save_file.close()
+        print("finish")
+
+
 def main() -> None:
-    all_log = LogFile("log_tmp.log")
-    for x in range(10):
-        print(all_log[x].log_contain)
+    CompressLogFile("log_tmp.log", log_templates, "./output")
 
 
 if __name__ == '__main__':
     main()
+
