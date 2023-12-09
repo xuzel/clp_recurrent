@@ -10,8 +10,8 @@ from utils import *
 
 
 class Log:
-    def __init__(self, log_contain: str, template: typing.List[str]):
-        self.log_content = log_contain
+    def __init__(self, log_content: str, template: typing.List[str]):
+        self.log_content = log_content
         # self.log_template = template
         self.log_type_id = self._match_log_to_template()
         if self.log_type_id is None:
@@ -20,7 +20,7 @@ class Log:
         self.log_type = log_templates[self.log_type_id]
         self.log_variables = self._extract_variables_from_log()
         if not self.log_variables:
-            print(f"error iin exact variables in log {log_contain} please checkout")
+            print(f"error iin exact variables in log {log_content} please checkout")
             return
 
     def _match_log_to_template(self) -> typing.Union[int, None]:
@@ -87,6 +87,8 @@ class CompressLogFile:
             for x in range(variable_num):
                 self.log_variable[index][self.VARIABLE_INDEX].append(list())
         self._compress()
+        del self.all_log
+        del self.log_variable
         self.second_compress()
 
     def _compress(self) -> None:
@@ -98,21 +100,22 @@ class CompressLogFile:
             try:
                 file_position = save_file.tell()
                 binary_datatime = str_datatime2binary64(each_log.log_variables[self.DATATIME_INDEX])
-                save_file.write(binary_datatime)
                 binary_log_type = int2binary64(each_log.log_type_id)
-                save_file.write(binary_log_type)
-                for variable_index, each_variable in enumerate(each_log.log_variables):
-                    if variable_index == self.DATATIME_INDEX:
-                        continue
-                    self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1].append(
-                        [each_variable, file_position])
-                    new_element_index = len(
-                        self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1]) - 1
-
-                    new_element_index_binary = int2binary64(new_element_index)
-                    save_file.write(new_element_index_binary)
             except:
                 continue
+            save_file.write(binary_datatime)
+            save_file.write(binary_log_type)
+            for variable_index, each_variable in enumerate(each_log.log_variables):
+                if variable_index == self.DATATIME_INDEX:
+                    continue
+                self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1].append(
+                    [each_variable, file_position])
+                new_element_index = len(
+                    self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1]) - 1
+
+                new_element_index_binary = int2binary64(new_element_index)
+                save_file.write(new_element_index_binary)
+
         pickle.dump(self.log_variable, save_pkl)
         save_pkl.close()
         save_file.close()
@@ -130,7 +133,7 @@ class CompressLogFile:
 
 
 def main() -> None:
-    CompressLogFile("log_tmp.log", log_templates, "./output")
+    CompressLogFile("log.log", log_templates, "./output")
 
 
 if __name__ == '__main__':
