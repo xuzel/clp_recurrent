@@ -170,8 +170,8 @@ def generate_randon_data() -> dict:
 
 
 def main() -> None:
-    with open("_log.log", 'w') as file:
-        for x in tqdm(range(400000000), desc="generate:"):
+    with open("log_tmp.log", 'w') as file:
+        for x in tqdm(range(10000000), desc="generate:"):
             data = generate_randon_data()
             message = random.choice(log_templates).format(**data)
             file.write(message + '\n')

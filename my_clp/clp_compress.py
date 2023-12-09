@@ -7,24 +7,25 @@ import copy
 from datetime import datetime
 import struct
 import pickle
+from tqdm import tqdm
 
 
 class Log:
     def __init__(self, log_contain: str, template: typing.List[str]):
         self.log_contain = log_contain
-        self.log_template = template
+        # self.log_template = template
         self.log_type_id = self._match_log_to_template()
         if self.log_type_id is None:
             print(f"the log '{self.log_contain}' don't match any template")
             return
-        self.log_type = self.log_template[self.log_type_id]
+        self.log_type = log_templates[self.log_type_id]
         self.log_variables = self._extract_variables_from_log()
         if not self.log_variables:
             print(f"error iin exact variables in log {log_contain} please checkout")
             return
 
     def _match_log_to_template(self):
-        templates = self.log_template
+        templates = log_templates
         log = self.log_contain
         # 将模板转换成正则表达式
         regex_templates = [re.sub(r'\{[^}]*\}', '.*', template) for template in templates]
@@ -56,25 +57,38 @@ class LogFile:
     def __init__(self, log_path: str):
         self.log_file_path = log_path
         _log_list = self.read_log_file()
-        _log_list = [x.replace("\n", '') for x in _log_list]
-        if not _log_list:
-            return
-        self.log_list = [Log(each_log, log_templates) for each_log in _log_list]
+        # _log_list = [x.replace("\n", '') for x in _log_list]
+        # if not _log_list:
+        #     return
+        self.log_list = []
+        for each_log in tqdm(_log_list, desc="处理日志"):
+            self.log_list.append(Log(each_log, log_templates))
+        del _log_list
 
     def read_log_file(self) -> typing.List[str]:
-        path = self.log_file_path
-        try:
-            log_file = open(path, 'r')
-        except IOError as e:
-            print(f"can't open the file {self.log_file_path}")
-            return []
-        log_list = log_file.readlines()
-        # print(type(log_list))
-        log_file.close()
-        return log_list
+        # path = self.log_file_path
+        # try:
+        #     log_file = open(path, 'r')
+        # except IOError as e:
+        #     print(f"can't open the file {self.log_file_path}")
+        #     return []
+        # log_list = log_file.readlines()
+        # # print(type(log_list))
+        # log_file.close()
+        # return log_list[1:]
+        with open(self.log_file_path, 'r') as file:
+            next(file)
+            for line in file:
+                yield line.strip()
 
     def __getitem__(self, item):
         return self.log_list[item]
+
+    def __delitem__(self, index):
+        del self.log_list[index]
+
+    def __len__(self):
+        return len(self.log_list)
 
 
 def count_pattern(text: str, pattern: str = r"\{.*?\}"):
@@ -119,24 +133,44 @@ class CompressLogFile:
         self._compress()
 
     def _compress(self):
+        print("start compress")
         save_file = open(os.path.join(self.save_path, "compress_file.bin"), "wb")
         save_pkl = open(os.path.join(self.save_path, "log_variable.pkl"), "wb")
 
-        for each_log in self.all_log:
-            file_position = save_file.tell()
-            binary_datatime = str_datatime2binary64(each_log.log_variables[self.DATATIME_INDEX])
-            save_file.write(binary_datatime)
-            binary_log_type = int2binary64(each_log.log_type_id)
-            save_file.write(binary_log_type)
-            for variable_index, each_variable in enumerate(each_log.log_variables):
-                if variable_index == self.DATATIME_INDEX:
-                    continue
-                self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1].append(
-                    [each_variable, file_position])
-                new_element_index = len(
-                    self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1]) - 1
-                new_element_index_binary = int2binary64(new_element_index)
-                save_file.write(new_element_index_binary)
+        for each_log in tqdm(self.all_log, desc="压缩"):
+            try:
+                file_position = save_file.tell()
+                binary_datatime = str_datatime2binary64(each_log.log_variables[self.DATATIME_INDEX])
+                save_file.write(binary_datatime)
+                binary_log_type = int2binary64(each_log.log_type_id)
+                save_file.write(binary_log_type)
+                for variable_index, each_variable in enumerate(each_log.log_variables):
+                    if variable_index == self.DATATIME_INDEX:
+                        continue
+                    # matching_list = None
+                    # for index, sublist in enumerate(self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1]):
+                    #     if sublist[0] == each_variable:
+                    #         matching_list = sublist
+                    #         break
+                    # if matching_list:
+                    #     self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1][index][1].append(file_position)
+                    #     new_element_index = index
+                    # else:
+                    #     self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1].append(
+                    #         [each_variable, [file_position]])
+                    #     new_element_index = len(
+                    #         self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1]) - 1
+
+                    self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1].append(
+                        [each_variable, file_position])
+                    new_element_index = len(
+                        self.log_variable[each_log.log_type_id][self.VARIABLE_INDEX][variable_index - 1]) - 1
+
+                    new_element_index_binary = int2binary64(new_element_index)
+                    save_file.write(new_element_index_binary)
+                    # del self.all_log[variable_index]
+            except:
+                continue
         pickle.dump(self.log_variable, save_pkl)
         save_pkl.close()
         save_file.close()
@@ -149,4 +183,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-
